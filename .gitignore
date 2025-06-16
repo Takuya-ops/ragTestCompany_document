@@ -1,0 +1,6 @@
+venv
+.env
+data
+logs
+.chroma
+__pycache__
