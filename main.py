@@ -8,6 +8,13 @@ from dotenv import load_dotenv
 # ログ出力を行うためのモジュール
 import logging
 
+# 警告の抑制
+import warnings
+
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*wrong pointing object.*")
+warnings.filterwarnings("ignore", message=".*custom sys.excepthook.*")
+
 # streamlitアプリの表示を担当するモジュール
 import streamlit as st
 
@@ -233,3 +240,14 @@ if st.sidebar.checkbox("📊 システム情報を表示", value=False):
             st.markdown(f"**オーバーラップ:** {ct.CHUNK_OVERLAP}")
 
         st.markdown("---")
+
+        # セッションリセット機能
+        if st.button(
+            "🔄 セッションリセット", help="会話履歴とキャッシュをクリアします"
+        ):
+            # セッション状態をクリア
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            # キャッシュをクリア
+            st.cache_data.clear()
+            st.rerun()

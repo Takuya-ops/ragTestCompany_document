@@ -201,7 +201,13 @@ def load_single_document(file_path):
     file_extension = file_path.suffix.lower()
 
     if file_extension == ".pdf":
-        loader = PyPDFLoader(str(file_path))
+        # PDF警告を抑制
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            warnings.filterwarnings("ignore", message=".*wrong pointing object.*")
+            loader = PyPDFLoader(str(file_path))
     elif file_extension == ".docx":
         loader = Docx2txtLoader(str(file_path))
     elif file_extension == ".csv":

@@ -37,8 +37,12 @@ def get_llm_response(user_message):
         if not st.session_state.retriever:
             raise ValueError("Retrieverが初期化されていません")
 
-        # LLMの初期化
-        llm = ChatOpenAI(temperature=0, model_name="gpt-4o-mini")
+        # LLMの初期化（警告抑制）
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            llm = ChatOpenAI(temperature=0, model_name="gpt-4o-mini")
 
         # モードに応じてプロンプトを変更
         if st.session_state.mode == ct.ANSWER_MODE_1:
