@@ -5,6 +5,52 @@ from langchain_openai import ChatOpenAI
 import constants as ct
 import pandas as pd
 from pathlib import Path
+import warnings
+import os
+import sys
+from io import StringIO
+from contextlib import redirect_stdout, redirect_stderr
+
+
+# PDF関連の警告を完全に抑制するためのクラス
+class SilentPDFLoader:
+    """PDF読み込み時の警告を完全に抑制するためのカスタムローダー"""
+
+    @staticmethod
+    def load_pdf_silently(file_path):
+        """PDFファイルを警告なしで読み込む"""
+        # 標準出力とエラー出力を一時的に無効化
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+
+        try:
+            # 出力を/dev/nullにリダイレクト
+            with open(os.devnull, "w") as devnull:
+                sys.stdout = devnull
+                sys.stderr = devnull
+
+                # 警告を抑制
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+
+                    # PDFローダーのインポートと実行
+                    from langchain_community.document_loaders import PyPDFLoader
+
+                    loader = PyPDFLoader(file_path)
+                    documents = loader.load()
+
+                    return documents
+
+        finally:
+            # 標準出力とエラー出力を復元
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+
+# 警告抑制の設定
+warnings.filterwarnings("ignore")
+os.environ["PYTHONWARNINGS"] = "ignore"
+os.environ["PYPDF_VERBOSE"] = "0"
 
 
 def build_error_message(base_message):
@@ -347,3 +393,77 @@ def get_file_statistics():
         logger = logging.getLogger(ct.LOGGER_NAME)
         logger.error(f"ファイル統計取得エラー: {e}")
         return {"total_files": 0, "file_types": {}}
+
+
+def force_rebuild_vectordb():
+    """
+    ベクトルデータベースの強制再構築を実行
+    """
+    import shutil
+    from pathlib import Path
+    import constants as ct
+
+    logger = logging.getLogger(ct.LOGGER_NAME)
+
+    try:
+        # 既存のベクトルデータベースを削除
+        chroma_dir = Path(ct.CHROMA_DIR)
+        if chroma_dir.exists():
+            shutil.rmtree(chroma_dir)
+            logger.info(f"ベクトルデータベースを削除しました: {chroma_dir}")
+
+        # 一時ディレクトリも削除
+        for temp_dir in Path(".").glob(".chroma_*"):
+            if temp_dir.is_dir():
+                shutil.rmtree(temp_dir)
+                logger.info(f"一時ディレクトリを削除しました: {temp_dir}")
+
+        st.success("ベクトルデータベースを削除しました。アプリを再起動してください。")
+
+    except Exception as e:
+        logger.error(f"ベクトルデータベース削除エラー: {e}")
+        st.error(f"削除に失敗しました: {e}")
+
+
+def get_vectordb_info():
+    """
+    ベクトルデータベースの情報を取得
+    """
+    from pathlib import Path
+    import constants as ct
+
+    info = {"exists": False, "size": 0, "path": ct.CHROMA_DIR, "temp_dirs": []}
+
+    # メインディレクトリの確認
+    chroma_dir = Path(ct.CHROMA_DIR)
+    if chroma_dir.exists():
+        info["exists"] = True
+        info["size"] = sum(
+            f.stat().st_size for f in chroma_dir.rglob("*") if f.is_file()
+        )
+
+    # 一時ディレクトリの確認
+    for temp_dir in Path(".").glob(".chroma_*"):
+        if temp_dir.is_dir():
+            temp_size = sum(
+                f.stat().st_size for f in temp_dir.rglob("*") if f.is_file()
+            )
+            info["temp_dirs"].append({"path": str(temp_dir), "size": temp_size})
+
+    return info
+
+
+def format_file_size(size_bytes):
+    """
+    ファイルサイズを人間が読みやすい形式に変換
+    """
+    if size_bytes == 0:
+        return "0 B"
+
+    size_names = ["B", "KB", "MB", "GB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+
+    return f"{size_bytes:.1f} {size_names[i]}"

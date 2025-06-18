@@ -6,6 +6,11 @@
 APP_NAME = "社内情報特化型生成AI検索アプリ"
 LOGGER_NAME = "company_inner_search_app"
 
+# ディレクトリ設定
+DATA_DIR = "data"  # 社内文書を格納するディレクトリ
+CHROMA_DIR = ".chroma"  # Chromaベクトルデータベースのディレクトリ
+FORCE_REBUILD_ENV = "FORCE_REBUILD_VECTORDB"  # 強制再構築の環境変数名
+
 # 回答モード
 ANSWER_MODE_1 = "社内文書検索"
 ANSWER_MODE_2 = "社内問い合わせ"
@@ -15,8 +20,11 @@ ANSWER_MODE_2 = "社内問い合わせ"
 RETRIEVER_K = 5  # ベクターストアから取り出すドキュメント数
 
 # 【問題2対応】チャンク分割設定をマジックナンバーから変数化
-CHUNK_SIZE = 1000  # ドキュメントのチャンクサイズ
-CHUNK_OVERLAP = 200  # チャンクのオーバーラップサイズ
+CHUNK_SIZE = 800  # ドキュメントのチャンクサイズ（トークン制限対策で縮小）
+CHUNK_OVERLAP = 150  # チャンクのオーバーラップサイズ
+
+# ベクトル化バッチ処理設定
+EMBEDDING_BATCH_SIZE = 50  # 一度にベクトル化するチャンク数（トークン制限対策）
 
 # UI表示設定
 CHAT_INPUT_HELPER_TEXT = "メッセージを入力してください"

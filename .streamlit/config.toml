@@ -1,0 +1,11 @@
+[global]
+showWarningOnDirectExecution = false
+
+[logger]
+level = "error"
+
+[client]
+showErrorDetails = false
+
+[server]
+enableStaticServing = false 

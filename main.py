@@ -8,12 +8,53 @@ from dotenv import load_dotenv
 # ログ出力を行うためのモジュール
 import logging
 
-# 警告の抑制
+# 警告の抑制とstdout/stderrリダイレクト
 import warnings
+import os
+import sys
+from io import StringIO
+from contextlib import redirect_stdout, redirect_stderr
 
+# 環境変数でPDF警告を抑制
+os.environ["PYTHONWARNINGS"] = "ignore"
+os.environ["PYPDF_VERBOSE"] = "0"
+os.environ["FITZ_LOGGING"] = "0"
+
+# すべての警告を抑制
+warnings.filterwarnings("ignore")
+warnings.simplefilter("ignore")
+
+# 特定の警告を個別に抑制
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*wrong pointing object.*")
 warnings.filterwarnings("ignore", message=".*custom sys.excepthook.*")
+warnings.filterwarnings("ignore", message=".*Ignoring wrong pointing object.*")
+
+# PyPDF2/PyMuPDF関連の警告を抑制
+warnings.filterwarnings("ignore", module="pypdf")
+warnings.filterwarnings("ignore", module="PyPDF2")
+warnings.filterwarnings("ignore", module="fitz")
+
+
+# PDF関連のエラーメッセージを完全に抑制するためのクラス
+class SuppressOutput:
+    def __init__(self):
+        self.null_file = open(os.devnull, "w")
+        self.old_stdout = sys.stdout
+        self.old_stderr = sys.stderr
+
+    def __enter__(self):
+        sys.stdout = self.null_file
+        sys.stderr = self.null_file
+        return self
+
+    def __exit__(self, type, value, traceback):
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+        self.null_file.close()
+
 
 # streamlitアプリの表示を担当するモジュール
 import streamlit as st
@@ -51,7 +92,9 @@ logger = logging.getLogger(ct.LOGGER_NAME)
 
 try:
     # 初期化処理（「initialize.py」の「initialize」関数を実行）
-    initialize()
+    # PDF警告を抑制しながら実行
+    with SuppressOutput():
+        initialize()
 
 except Exception as e:
     # エラーログの出力
@@ -238,6 +281,34 @@ if st.sidebar.checkbox("📊 システム情報を表示", value=False):
             st.markdown(f"**検索設定:** 上位{ct.RETRIEVER_K}件取得")
             st.markdown(f"**チャンクサイズ:** {ct.CHUNK_SIZE}")
             st.markdown(f"**オーバーラップ:** {ct.CHUNK_OVERLAP}")
+
+        st.markdown("---")
+
+        # ベクトルデータベース情報
+        st.markdown("### 🗄️ ベクトルデータベース")
+        vectordb_info = utils.get_vectordb_info()
+
+        if vectordb_info["exists"]:
+            st.markdown(f"**状態:** ✅ 存在")
+            st.markdown(f"**サイズ:** {utils.format_file_size(vectordb_info['size'])}")
+            st.markdown(f"**パス:** `{vectordb_info['path']}`")
+
+            # 一時ディレクトリの情報
+            if vectordb_info["temp_dirs"]:
+                st.markdown("**一時ディレクトリ:**")
+                for temp_dir in vectordb_info["temp_dirs"]:
+                    st.markdown(
+                        f"- `{temp_dir['path']}` ({utils.format_file_size(temp_dir['size'])})"
+                    )
+        else:
+            st.markdown("**状態:** ❌ 未作成")
+
+        # 強制再構築ボタン
+        if st.button(
+            "🔄 ベクトルDB再構築",
+            help="ベクトルデータベースを削除して再構築します（アプリ再起動が必要）",
+        ):
+            utils.force_rebuild_vectordb()
 
         st.markdown("---")
 
